@@ -1,65 +1,62 @@
-//console.log('Hi')
 
+function processed_elements(){
+    this.processing_array = [];
+    this.push = function(value){
+        if(value.url==undefined || value.url == 'undefined'){
+            return;
+        }
+        this.processing_array.push(value);
+        if(this.processing_array.length == 10){
+            let sendToAPI = this.processing_array;
+            this.processing_array = [];
+            console.log("Send to API")
+            console.log(sendToAPI);
+        }
+    }
+}
 function processing_tabs(){
     
     this.processing_elements = {};
-    
-    this.processed_elements = [];
-    let _linker_length = 0;
-    Object.defineProperty(this,'processed_elements.length',{
-        get: function getterForProcessedElement(){
-            return _linker_length;
-        }
-        ,
-        set: function setterForProcessedElement(value){
-            _linker_length=value; 
-            if(_linker_length>10){
-                let sendToAPI = this.processed_elements.slice(0, 10)
-                this.processed_elements = this.processed_elements.slice(10);
-                _linker_length -=10;
-            }
-        }
-    })
+        
+    this.processed_elements = new processed_elements();
+        
     this.add_first = function(details){
         //add elements when the extension reloads
-        //console.log(details)
-        if(!details || !details.tab || !details.tabId){
+        console.log(details)
+        if(!details || !details.id){
             return;
         }
         let obj = {
             url: details.pending_url + details.url,
             timeStamp: details.timeStamp,
-            id: details.tab.id,
-            startTime: new Date().toLocaleDateString()
+            id: details.id,
+            startTime: new Date().toLocaleString()
         };
-        this.processing_elements[details.tab.id] = obj;
+        this.processing_elements[details.id] = obj;
     }
     this.add = function(details){
         //console.log(details)
-        if(!details || !details.tabId || (details.frameId != 0) ){
-
+        if(!details || !details.tabId || (details.frameType != 'outermost_frame') ){
             return;
         }
-        //console.log('22')
-        //console.log(details)
 
-        this.processed_elements[details.tabId] = {...this.processed_elements[details.tabId], completionTime: new Date().toLocaleDateString()}
-        this.processed_elements.push(this.processed_elements[details.tabId]);
+        this.processing_elements[details.tabId] = {...this.processing_elements[details.tabId], completionTime: new Date().toLocaleString()}
+        this.processed_elements.push(this.processing_elements[details.tabId]);
         delete this.processing_elements[details.tabId];
         
         let obj = {
             url: details.url,
             timeStamp: details.timeStamp,
             id: details.tabId,
-            startTime: new Date().toLocaleDateString()
+            startTime: new Date().toLocaleString()
         }
         this.processing_elements[details.tabId] = obj
     }
     this.close = function(id){
         //console.log('30')
         
-        this.processed_elements[id] = {...this.processed_elements[id], completionTime: new Date().toLocaleDateString()}
-        this.processed_elements.push(this.processed_elements[id]);
+        this.processing_elements[id] = {...this.processing_elements[id], completionTime: new Date().toLocaleDateString()}
+        this.processed_elements.push(this.processing_elements[id]);
         delete this.processing_elements[id]
     }
 
@@ -67,13 +64,24 @@ function processing_tabs(){
 const pt = new processing_tabs();
 chrome.windows.getAll((window) => {
     chrome.tabs.query({currentWindow: window.id},(details)=>{
-        pt.add_first(details);
+        console.log('query')
+        console.log(details)
+        for(let detail of details)
+            pt.add_first(detail);
     })
 })
 chrome.webNavigation.onCompleted.addListener((details) => {
+    console.log('Web Navigation')
+    console.log(details)
     pt.add(details);
 });
 chrome.tabs.onRemoved.addListener((tabId,details)=>{
     pt.close(tabId);
+})
+chrome.tabs.onCreated.addListener((tab)=>{
+    console.log('Add first')
+    console.log(tab)
+    pt.add_first(tab);
+
 })
 //console.log('57');
